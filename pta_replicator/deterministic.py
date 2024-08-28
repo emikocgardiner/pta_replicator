@@ -184,7 +184,7 @@ def add_cgw(
 
 
 def add_catalog_of_cws(psr, gwtheta_list, gwphi_list, mc_list, dist_list, fgw_list, phase0_list, psi_list, inc_list, pdist=1.0,
-                       pphase=None, psrTerm=True, evolve=True, phase_approx=False, tref=0, chunk_size=10_000_000, signal_name='cw_catalog'):
+                       pphase=None, psrTerm=True, evolve=True, phase_approx=False, tref=0, chunk_size=10_000_000, signal_name='cw_catalog', print_steps=False):
     """
     Method to add a list of many SMBHBs more efficiently than by calling add_cgw multiple times. It takes the same input as add_cgw, except as lists.
 
@@ -221,6 +221,8 @@ def add_catalog_of_cws(psr, gwtheta_list, gwphi_list, mc_list, dist_list, fgw_li
         default 10_000_000
     signal_name : str
         default 'cw_catalog'
+    print_steps : boolean
+        Whether to print steps 
 
     Returns
     -------
@@ -272,11 +274,11 @@ def add_catalog_of_cws(psr, gwtheta_list, gwphi_list, mc_list, dist_list, fgw_li
     if mc_list.size>1_000:
         #print("parallel")
         N_chunk = int(np.ceil(mc_list.size/chunk_size))
-        print(N_chunk)
+        if print_steps: print(N_chunk)
         for jjj in range(N_chunk):
-            print(str(jjj) + " / " + str(N_chunk))
+            if print_steps: print(str(jjj) + " / " + str(N_chunk))
             idxs = range(jjj*chunk_size, min((jjj+1)*chunk_size,mc_list.size) )
-            print(idxs)
+            if print_steps: print(idxs)
             res = loop_over_CWs_parallel(phat.astype('float64'), toas.astype('float64'),
                                          gwtheta_list[idxs], gwphi_list[idxs], mc_list[idxs], dist_list[idxs],
                                          fgw_list[idxs], phase0_list[idxs], psi_list[idxs], inc_list[idxs],
