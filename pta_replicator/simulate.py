@@ -162,12 +162,12 @@ def generate_new_toas(old_mjds, old_errors, start_mjd, end_mjd):
 
     Parameters
     ----------
-    old_intervals : arraylike
-        the differences between consecutive observing times of all past TOAs, in days 
+    old_mjds : astropy.units.quantity.Quantity object
+        mjds of all past TOAs, in days 
     old_errors : astropy.units.quantity.Quantity object
         the errors of all past TOAs, usually in us
     start_mjd : float or astropy.time.core.Time object
-        starting observation (old toas.last_MJD) float in days
+        starting observation (old toas.last_MJD) float, in days
     end_mjd : float or astropy.time.core.Time
         new final observation date, in days
     Returns
