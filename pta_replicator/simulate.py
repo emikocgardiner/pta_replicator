@@ -8,6 +8,8 @@ import glob
 import os
 from dataclasses import dataclass
 from astropy.time import TimeDelta
+from astropy.time.core import Time
+import numpy as np
 
 from pint.residuals import Residuals
 import pint.toa as toa
@@ -150,4 +152,100 @@ def make_ideal(psr: SimulatedPulsar, iterations: int = 2):
         residuals = Residuals(psr.toas, psr.model)
         psr.toas.adjust_TOAs(TimeDelta(-1.0*residuals.time_resids))
     psr.added_signals = {}
+    psr.update_residuals()
+
+
+
+def generate_new_toas(old_mjds, old_errors, start_mjd, end_mjd):
+    """ Generate new observation times (MJDs) and errors, drawn from the previous intervals
+    between observation and previous errors. 
+
+    Parameters
+    ----------
+    old_intervals : arraylike
+        the differences between consecutive observing times of all past TOAs, in days 
+    old_errors : astropy.units.quantity.Quantity object
+        the errors of all past TOAs, usually in us
+    start_mjd : float or astropy.time.core.Time object
+        starting observation (old toas.last_MJD) float in days
+    end_mjd : float or astropy.time.core.Time
+        new final observation date, in days
+    Returns
+    -------
+    new_mjds : astropy.units.quantity.Quantity
+        TOA MJD of each new observation, in days
+    new_errors : astropy.units.quantity.Quantity
+        TOA error of each new observation, in same units as old_errors, usually us
+
+    """
+
+    # get start and end as floats
+    if isinstance(end_mjd, Time):
+        end_mjd = end_mjd.value
+    if isinstance(start_mjd, Time):
+        start_mjd = start_mjd.value
+
+    old_mjd_intervals = np.diff(old_mjds).value
+
+    new_mjds = []
+    new_errors = []
+    # generate a new observation, with a time difference from the current one drawn from previous time differences
+    cur_mjd = start_mjd + np.random.choice(old_mjd_intervals) 
+    # draw the error for the new observation from previous errors
+    cur_error = np.random.choice(old_errors)
+    
+    while (cur_mjd < end_mjd): # if this new observation is before our end date
+        # append the current observation
+        new_mjds.append(cur_mjd)
+        new_errors.append(cur_error)
+        # generate next observation
+        cur_mjd = cur_mjd + np.random.choice(old_mjd_intervals)
+        cur_error = np.random.choice(old_errors)
+    new_errors = new_errors * old_errors.unit
+    new_mjds = new_mjds * old_mjds.unit
+    return new_mjds, new_errors
+
+
+def extend_pulsar_duration(psr: SimulatedPulsar, end_mjd=None, extend_by_mjd=None):
+    """ Generate new toas and add them to the pulsar, until some end date.
+
+    Parameters
+    ----------
+    psr : pta_replicator.simulate.SimulatedPulsar object
+        simulated pulsar, to have toas added to it
+    end_mjd : float or Time object
+        new date to end observations, in MJDs
+    extend_by_mjd : float or Time object
+        number of MJDs to extend beyond latest
+    
+    Only provide one of end_mjd or extend_by_mjd
+    The new residuals will be wacky until you make ideal and re-inject noise.
+
+    
+    """
+    if end_mjd is not None and extend_by_mjd is not None:
+        err = f"Only provide one of {end_mjd=} and {extend_by_mjd=}"
+        raise ValueError(err)
+    elif end_mjd is None:
+        if extend_by_mjd is None:
+            err = f"Must provide one of {end_mjd=} or {extend_by_mjd=}"
+            raise ValueError(err)
+        else:
+            end_mjd = psr.toas.last_MJD.value + extend_by_mjd
+
+    # get new mjds and errors
+    new_mjds, new_errors = generate_new_toas(
+        old_mjds=psr.toas.get_mjds(), old_errors=psr.toas.get_errors(),
+        start_mjd=psr.toas.last_MJD, end_mjd=end_mjd)
+    
+    # make the TOA objects
+    new_toas = toa.get_TOAs_array(
+        new_mjds, obs=list(psr.toas.observatories)[0], errors=new_errors,
+        planets=True, ephem=psr.ephem)
+    
+    # combine the new custom toas with the old ones 
+    new_toas.obliquity = psr.toas.obliquity # use same obliquity ig
+    psr.toas.merge(new_toas)
+
+    # update the residuals to include all the new ones
     psr.update_residuals()
