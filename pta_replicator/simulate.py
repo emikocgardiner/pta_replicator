@@ -156,7 +156,7 @@ def make_ideal(psr: SimulatedPulsar, iterations: int = 2):
 
 
 
-def generate_new_toas(old_mjds, old_errors, start_mjd, end_mjd):
+def generate_new_toas(old_mjds, old_errors, start_mjd, end_mjd, drop_extrema = True):
     """ Generate new observation times (MJDs) and errors, drawn from the previous intervals
     between observation and previous errors. 
 
@@ -170,6 +170,9 @@ def generate_new_toas(old_mjds, old_errors, start_mjd, end_mjd):
         starting observation (old toas.last_MJD) float, in days
     end_mjd : float or astropy.time.core.Time
         new final observation date, in days
+    drop_extrema : bool
+        Whether or not to drop the lowest and highest observing time intervals
+
     Returns
     -------
     new_mjds : astropy.units.quantity.Quantity
@@ -186,6 +189,8 @@ def generate_new_toas(old_mjds, old_errors, start_mjd, end_mjd):
         start_mjd = start_mjd.value
 
     old_mjd_intervals = np.diff(old_mjds).value
+    if drop_extrema:
+        old_mjd_intervals = np.sort(old_mjd_intervals)[1:-1] # drop longest and shortest
 
     new_mjds = []
     new_errors = []
