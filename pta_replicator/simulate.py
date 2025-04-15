@@ -9,6 +9,7 @@ import os
 from dataclasses import dataclass
 from astropy.time import TimeDelta
 from astropy.time.core import Time
+from astropy import units as u
 import numpy as np
 
 from pint.residuals import Residuals
@@ -251,6 +252,41 @@ def extend_pulsar_duration(psr: SimulatedPulsar, end_mjd=None, extend_by_mjd=Non
     # combine the new custom toas with the old ones 
     new_toas.obliquity = psr.toas.obliquity # use same obliquity ig
     psr.toas.merge(new_toas)
+
+    # update the residuals to include all the new ones
+    psr.update_residuals()
+
+def shorten_pulsar_duration(psr: SimulatedPulsar, end_mjd):
+    """ Remove toas that are after the end date.
+
+    Parameters
+    ----------
+    psr : pta_replicator.simulate.SimulatedPulsar object
+        simulated pulsar, to have toas added to it
+    end_mjd : float or Time object
+        MJD for new end of observations, in days
+    
+    Only provide one of end_mjd or extend_by_mjd
+    The new residuals will be wacky until you make ideal and re-inject noise.
+
+    
+    """
+
+    if isinstance(end_mjd, Time):
+        end_mjd = end_mjd.value
+
+    cur_first_mjd = psr.toas.first_MJD.value
+    cur_last_mjd = psr.toas.last_MJD.value
+
+    if cur_first_mjd > end_mjd:
+        err = f"Pulsar data starts at {cur_first_mjd}, no data before {end_mjd=}."
+        raise ValueError(err)
+    elif cur_last_mjd < end_mjd:
+        print(f"{cur_last_mjd=} already before {end_mjd=}")
+        return
+
+    # limit the toas 
+    psr.toas = psr.toas[psr.toas.get_mjds() < (end_mjd*u.d)]
 
     # update the residuals to include all the new ones
     psr.update_residuals()
