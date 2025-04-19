@@ -20,6 +20,7 @@ import pint.fitter
 from enterprise.pulsar import Pulsar
 
 
+
 @dataclass
 class SimulatedPulsar:
     """
@@ -256,7 +257,7 @@ def extend_pulsar_duration(psr: SimulatedPulsar, end_mjd=None, extend_by_mjd=Non
     # update the residuals to include all the new ones
     psr.update_residuals()
 
-def shorten_pulsar_duration(psr: SimulatedPulsar, end_mjd):
+def shorten_pulsar_duration(psr: SimulatedPulsar, end_mjd, make_new = False, debug=False):
     """ Remove toas that are after the end date.
 
     Parameters
@@ -265,6 +266,10 @@ def shorten_pulsar_duration(psr: SimulatedPulsar, end_mjd):
         simulated pulsar, to have toas added to it
     end_mjd : float or Time object
         MJD for new end of observations, in days
+    make_new : boolean
+        Whether to return a new pulsar, otherwise modify current
+    debug : string
+        Whether to print debugging info
     
     Only provide one of end_mjd or extend_by_mjd
     The new residuals will be wacky until you make ideal and re-inject noise.
@@ -281,12 +286,22 @@ def shorten_pulsar_duration(psr: SimulatedPulsar, end_mjd):
     if cur_first_mjd > end_mjd:
         err = f"Pulsar data starts at {cur_first_mjd}, no data before {end_mjd=}."
         raise ValueError(err)
-    elif cur_last_mjd < end_mjd:
-        print(f"{cur_last_mjd=} already before {end_mjd=}")
+    elif cur_last_mjd <= end_mjd:
+        if debug: print(f"{cur_last_mjd=} already before {end_mjd=}")
         return
+    
+    if make_new:
+        toas = psr.toas[psr.toas.get_mjds() <= (end_mjd*u.d)]
+        model = psr.model
+        residuals = Residuals(toas, model)
+        new_psr = SimulatedPulsar(
+            ephem=psr.ephem, model=model, 
+            toas=toas, residuals=residuals, name=psr.name, loc=psr.loc)
+        return new_psr
 
-    # limit the toas 
-    psr.toas = psr.toas[psr.toas.get_mjds() < (end_mjd*u.d)]
-
-    # update the residuals to include all the new ones
-    psr.update_residuals()
+    else:
+        # limit the toas 
+        psr.toas = psr.toas[psr.toas.get_mjds() < (end_mjd*u.d)]
+        # update the residuals to include all the new ones
+        psr.update_residuals()
+        return 
