@@ -230,6 +230,8 @@ def add_catalog_of_cws(psr, gwtheta_list, gwphi_list, mc_list, dist_list, fgw_li
     
     """
 
+    if print_steps:
+        print(f"In add_catalog_of_cws function")
     psr.update_added_signals('{}_'.format(psr.name)+signal_name,
                              {'gwtheta_list': gwtheta_list,
                               'gwphi_list':gwphi_list,
@@ -272,6 +274,8 @@ def add_catalog_of_cws(psr, gwtheta_list, gwphi_list, mc_list, dist_list, fgw_li
     #this should not be a problem, since we do not need such high precision in pulsar sky location or toas
     #for toas, note that this is only used to calculate the GW waveform and not to form the actual residuals
     if mc_list.size>1_000:
+        if print_steps:
+            print(f"Long mc_list so using 'loop_over_CWs_parallel' function")
         #print("parallel")
         N_chunk = int(np.ceil(mc_list.size/chunk_size))
         if print_steps: print(N_chunk)
@@ -288,6 +292,7 @@ def add_catalog_of_cws(psr, gwtheta_list, gwphi_list, mc_list, dist_list, fgw_li
             psr.toas.adjust_TOAs(TimeDelta(dt.to('day')))
             psr.update_residuals()
     else:
+        print(f"Short mc_list so using 'loop_over_CWs' function")
         res = loop_over_CWs(phat.astype('float64'), toas.astype('float64'), gwtheta_list, gwphi_list, mc_list, dist_list, fgw_list, phase0_list, psi_list, inc_list, pdist=pdist,
                             pphase=pphase, psrTerm=psrTerm, evolve=evolve, phase_approx=phase_approx)
 
